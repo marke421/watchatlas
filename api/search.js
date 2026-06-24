@@ -36,6 +36,9 @@ function buildParams(query, page, pageSize, sort) {
     page_no:         String(page),
     page_size:       String(pageSize),
     fields:          "product_id,product_title,product_main_image_url,target_sale_price,target_sale_price_currency,target_original_price,evaluate_rate,lastest_volume,promotion_link,first_level_category_name",
+    // AliExpress category IDs for watches:
+    // 200000783 = Watches, 6 = Watches (legacy), 1511 = Men's Watches, 200135143 = Women's Watches
+    category_ids:    "200000783,6,1511",
     sort:            sort || "SALE_PRICE_ASC",
     target_currency: "USD",
     target_language: "EN",
@@ -112,7 +115,27 @@ export default async function handler(req, res) {
   const products   = resp.result?.products?.product || [];
   const totalCount = resp.result?.total_record_count || 0;
 
-  const watches = products.map(p => ({
+  // ── Server-side title filter — drop obvious non-watch listings ──
+  // Straps, cases, parts, and accessories often slip through category filters.
+  const EXCLUDE = [
+    "strap","band","bracelet","bezel","crown","crystal","clasp","buckle",
+    "tool kit","spring bar","link removal","battery","movement repair",
+    "watch box","watch case box","display case","pillow","cushion",
+    "screen protector","tempered glass","protector film",
+    "cleaning","polish","cloth","winder",
+  ];
+  // Must contain at least one watch-positive signal in the title
+  const REQUIRE = ["watch","timepiece","wristwatch","chronograph","horloge"];
+
+  function isWatch(title) {
+    const t = title.toLowerCase();
+    if (EXCLUDE.some(kw => t.includes(kw))) return false;
+    return REQUIRE.some(kw => t.includes(kw));
+  }
+
+  const watches = products
+    .filter(p => isWatch(p.product_title || ""))
+    .map(p => ({
     id:            p.product_id,
     name:          p.product_title,
     image:         p.product_main_image_url,
