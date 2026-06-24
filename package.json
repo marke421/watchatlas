@@ -1,0 +1,14 @@
+{
+  "name": "watchatlas",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "WatchAtlas — Chinese microbrand watch finder with AliExpress affiliate integration",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "devDependencies": {
+    "vercel": "^34.0.0"
+  }
+}

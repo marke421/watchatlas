@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WatchAtlas — Chinese Microbrand Finder</title>
+<meta name="description" content="Browse and filter Chinese microbrand watches from AliExpress. Find homages, divers, dress watches and more from San Martin, Addiesdive, Tandorio, IXDAO and others.">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500&display=swap');
+
+:root {
+  --bg:         #0c0e14;
+  --surface:    #13161f;
+  --surface2:   #1a1e2b;
+  --border:     #242836;
+  --accent:     #b8966a;   /* aged brass */
+  --accent-dim: rgba(184,150,106,0.12);
+  --blue:       #4a7fa5;   /* steel blue */
+  --text:       #ddd9d0;
+  --muted:      #686e88;
+  --radius:     5px;
+  --fn-disp:    'Playfair Display', serif;
+  --fn-mono:    'DM Mono', monospace;
+  --fn-body:    'Inter', sans-serif;
+  --sidebar:    268px;
+  --header-h:   54px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--fn-body); font-size: 14px; min-height: 100vh; }
+a { color: inherit; text-decoration: none; }
+button { cursor: pointer; font-family: inherit; }
+
+/* ─── HEADER ──────────────────────────────────── */
+header {
+  position: sticky; top: 0; z-index: 200;
+  height: var(--header-h);
+  background: rgba(12,14,20,0.94);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 clamp(16px,3vw,40px);
+  gap: 24px;
+}
+
+.logo {
+  display: flex; align-items: baseline; gap: 10px;
+  flex-shrink: 0;
+}
+.logo-word {
+  font-family: var(--fn-disp);
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  /* signature element: split-color logo */
+  background: linear-gradient(90deg, var(--text) 50%, var(--accent) 50%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.logo-tag {
+  font-family: var(--fn-mono);
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  -webkit-text-fill-color: var(--muted);
+}
+
+/* global search in header */
+.header-search {
+  flex: 1;
+  max-width: 400px;
+  position: relative;
+}
+.header-search input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--fn-body);
+  font-size: 13px;
+  padding: 7px 12px 7px 34px;
+  outline: none;
+  transition: border-color .2s;
+}
+.header-search input::placeholder { color: var(--muted); }
+.header-search input:focus { border-color: var(--accent); }
+.header-search .s-icon {
+  position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+  color: var(--muted); font-size: 14px; pointer-events: none;
+}
+
+.header-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+.header-count { font-family: var(--fn-mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
+
+/* ─── LAYOUT ──────────────────────────────────── */
+.shell {
+  display: grid;
+  grid-template-columns: var(--sidebar) 1fr;
+  min-height: calc(100vh - var(--header-h));
+}
+
+/* ─── SIDEBAR ─────────────────────────────────── */
+aside {
+  border-right: 1px solid var(--border);
+  padding: 20px 18px 32px;
+  position: sticky;
+  top: var(--header-h);
+  height: calc(100vh - var(--header-h));
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+aside::-webkit-scrollbar { width: 3px; }
+aside::-webkit-scrollbar-thumb { background: var(--border); }
+
+.f-section { margin-bottom: 26px; }
+.f-label {
+  font-family: var(--fn-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 10px;
+}
+
+/* checkboxes */
+.check-list { display: flex; flex-direction: column; gap: 2px; }
+.c-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 8px; border-radius: var(--radius);
+  cursor: pointer; user-select: none;
+  transition: background .12s;
+}
+.c-item:hover { background: var(--surface2); }
+.c-item input { display: none; }
+.c-box {
+  width: 13px; height: 13px;
+  border: 1px solid var(--border); border-radius: 3px;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .12s;
+}
+.c-item input:checked ~ .c-box {
+  background: var(--accent); border-color: var(--accent);
+}
+.c-item input:checked ~ .c-box::after { content: '✓'; font-size: 8px; color: #000; font-weight: 700; }
+.c-name { flex: 1; font-size: 12.5px; color: var(--text); }
+.c-cnt { font-family: var(--fn-mono); font-size: 10px; color: var(--muted); }
+
+/* color swatches */
+.swatch-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.swatch {
+  width: 22px; height: 22px; border-radius: 50%;
+  cursor: pointer; border: 2px solid transparent;
+  transition: transform .12s, border-color .12s;
+  position: relative;
+}
+.swatch:hover { transform: scale(1.18); }
+.swatch.active { border-color: var(--accent); outline: 2px solid var(--bg); outline-offset: 1px; }
+
+/* case size — segmented buttons */
+.size-grid { display: flex; flex-wrap: wrap; gap: 5px; }
+.size-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-family: var(--fn-mono);
+  font-size: 11px;
+  padding: 4px 9px;
+  cursor: pointer;
+  transition: all .12s;
+  user-select: none;
+}
+.size-btn:hover { border-color: var(--accent); color: var(--text); }
+.size-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+
+/* price */
+.price-row { display: flex; align-items: center; gap: 8px; }
+.price-row input {
+  width: 76px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--text); font-family: var(--fn-mono); font-size: 12px;
+  padding: 6px 8px; outline: none; transition: border-color .2s;
+}
+.price-row input:focus { border-color: var(--accent); }
+.price-row span { color: var(--muted); font-size: 12px; }
+
+/* query pills — preset searches */
+.query-pills { display: flex; flex-direction: column; gap: 4px; }
+.q-pill {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-family: var(--fn-mono);
+  font-size: 11px;
+  padding: 5px 10px;
+  text-align: left;
+  cursor: pointer;
+  transition: all .12s;
+}
+.q-pill:hover, .q-pill.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+/* reset */
+.reset-btn {
+  width: 100%; background: transparent;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--muted); font-family: var(--fn-mono); font-size: 11px;
+  padding: 8px; letter-spacing: 0.06em;
+  transition: all .2s;
+}
+.reset-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ─── MAIN ────────────────────────────────────── */
+main { padding: 20px clamp(16px,3vw,32px); }
+
+.toolbar {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  gap: 12px; flex-wrap: wrap;
+}
+.results-count { font-family: var(--fn-mono); font-size: 11px; color: var(--muted); }
+.results-count strong { color: var(--accent); }
+
+.sort-wrap { display: flex; align-items: center; gap: 8px; }
+.sort-wrap label { font-family: var(--fn-mono); font-size: 10px; color: var(--muted); letter-spacing: 0.08em; }
+.sort-select {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--text); font-family: var(--fn-mono); font-size: 11px;
+  padding: 5px 10px; outline: none; cursor: pointer;
+}
+
+/* chips */
+.chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 14px; min-height: 0; }
+.chip {
+  display: flex; align-items: center; gap: 4px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 100px; padding: 3px 10px 3px 8px;
+  font-size: 11px; color: var(--accent);
+  font-family: var(--fn-mono); cursor: pointer; transition: border-color .15s;
+}
+.chip:hover { border-color: var(--accent); }
+.chip .x { color: var(--muted); margin-left: 2px; }
+
+/* grid */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
+
+/* card */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px; overflow: hidden;
+  display: flex; flex-direction: column;
+  transition: border-color .18s, transform .18s;
+}
+.card:hover { border-color: var(--accent); transform: translateY(-2px); }
+
+.card-img {
+  width: 100%; aspect-ratio: 1;
+  background: #0e1018;
+  display: flex; align-items: center; justify-content: center;
+  position: relative; overflow: hidden;
+}
+.card-img img { width: 100%; height: 100%; object-fit: cover; }
+.card-img .no-img { font-size: 44px; opacity: .5; }
+
+.badge {
+  position: absolute; top: 8px; left: 8px;
+  font-family: var(--fn-mono); font-size: 9px;
+  letter-spacing: 0.1em; padding: 2px 6px; border-radius: 3px;
+  text-transform: uppercase;
+}
+.badge-homage  { background: rgba(184,150,106,.12); border: 1px solid var(--accent); color: var(--accent); }
+.badge-original{ background: rgba(74,127,165,.12);  border: 1px solid var(--blue);   color: var(--blue);   }
+
+.card-body { padding: 11px 12px; flex: 1; display: flex; flex-direction: column; gap: 5px; }
+.card-brand { font-family: var(--fn-mono); font-size: 9.5px; letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; }
+.card-name  { font-family: var(--fn-disp); font-size: 14.5px; font-weight: 400; line-height: 1.3; flex: 1; }
+.card-specs { font-family: var(--fn-mono); font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+.card-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+.tag {
+  background: var(--surface2); border-radius: 3px;
+  padding: 2px 5px; font-size: 10px;
+  font-family: var(--fn-mono); color: var(--muted);
+}
+
+.card-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 12px; border-top: 1px solid var(--border);
+}
+.price { font-family: var(--fn-mono); font-size: 14px; font-weight: 500; }
+.price small { font-size: 9px; color: var(--muted); margin-left: 2px; font-weight: 400; }
+
+.ali-btn {
+  background: var(--accent); color: #000;
+  font-family: var(--fn-mono); font-size: 10px; font-weight: 500;
+  padding: 5px 10px; border-radius: 4px;
+  letter-spacing: 0.04em; transition: opacity .15s;
+  white-space: nowrap;
+}
+.ali-btn:hover { opacity: .82; }
+
+/* loading / empty / error states */
+.state-box {
+  grid-column: 1/-1; text-align: center;
+  padding: 64px 20px; color: var(--muted);
+  font-family: var(--fn-mono); font-size: 12px;
+}
+.state-box .big { font-size: 36px; display: block; margin-bottom: 14px; opacity: .4; }
+.state-box p { max-width: 320px; margin: 0 auto; line-height: 1.6; }
+
+/* spinner */
+.spinner {
+  width: 28px; height: 28px; margin: 0 auto 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* pagination */
+.pagination { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 28px; }
+.page-btn {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--muted);
+  font-family: var(--fn-mono); font-size: 11px;
+  padding: 6px 14px; cursor: pointer; transition: all .15s;
+}
+.page-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.page-btn:disabled { opacity: .3; cursor: default; }
+.page-info { font-family: var(--fn-mono); font-size: 11px; color: var(--muted); }
+
+/* ─── MOBILE ──────────────────────────────────── */
+@media (max-width: 720px) {
+  .shell { grid-template-columns: 1fr; }
+  aside { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(155px,1fr)); gap: 10px; }
+  .header-search { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ─────────────────────────────────────── -->
+<header>
+  <div class="logo">
+    <span class="logo-word">WatchAtlas</span>
+    <span class="logo-tag">microbrand finder</span>
+  </div>
+  <div class="header-search">
+    <span class="s-icon">⌕</span>
+    <input type="text" id="searchInput" placeholder="Search brand, model, reference…" autocomplete="off">
+  </div>
+  <div class="header-right">
+    <span class="header-count" id="headerCount">—</span>
+  </div>
+</header>
+
+<!-- ── SHELL ──────────────────────────────────────── -->
+<div class="shell">
+
+  <!-- SIDEBAR -->
+  <aside>
+
+    <!-- Preset queries -->
+    <div class="f-section">
+      <span class="f-label">Browse by brand</span>
+      <div class="query-pills" id="brandPills">
+        <button class="q-pill active" data-q="chinese microbrand watch">All brands</button>
+        <button class="q-pill" data-q="addiesdive watch">Addiesdive</button>
+        <button class="q-pill" data-q="san martin watch">San Martin</button>
+        <button class="q-pill" data-q="tandorio watch">Tandorio</button>
+        <button class="q-pill" data-q="ixdao watch">IXDAO</button>
+        <button class="q-pill" data-q="steeldive watch">Steeldive</button>
+        <button class="q-pill" data-q="phylida watch">Phylida</button>
+        <button class="q-pill" data-q="escapement time watch">Escapement Time</button>
+        <button class="q-pill" data-q="cronos watch">Cronos</button>
+      </div>
+    </div>
+
+    <!-- Dial color -->
+    <div class="f-section">
+      <span class="f-label">Dial color</span>
+      <div class="swatch-grid" id="colorSwatches">
+        <div class="swatch" data-color="black"     title="Black"     style="background:#1a1a1a"></div>
+        <div class="swatch" data-color="blue"      title="Blue"      style="background:#1a3a8a"></div>
+        <div class="swatch" data-color="green"     title="Green"     style="background:#2d5016"></div>
+        <div class="swatch" data-color="white"     title="White"     style="background:#e8e4dc; border:1px solid #444"></div>
+        <div class="swatch" data-color="silver"    title="Silver"    style="background:#a0a0a0"></div>
+        <div class="swatch" data-color="orange"    title="Orange"    style="background:#c84a1a"></div>
+        <div class="swatch" data-color="champagne" title="Champagne" style="background:#c8a96e"></div>
+        <div class="swatch" data-color="red"       title="Red"       style="background:#8b1a1a"></div>
+        <div class="swatch" data-color="grey"      title="Grey"      style="background:#5a5a6e"></div>
+      </div>
+    </div>
+
+    <!-- Case size — the new filter -->
+    <div class="f-section">
+      <span class="f-label">Case diameter</span>
+      <div class="size-grid" id="sizeGrid">
+        <button class="size-btn" data-size="34">34mm</button>
+        <button class="size-btn" data-size="36">36mm</button>
+        <button class="size-btn" data-size="38">38mm</button>
+        <button class="size-btn" data-size="39">39mm</button>
+        <button class="size-btn" data-size="40">40mm</button>
+        <button class="size-btn" data-size="41">41mm</button>
+        <button class="size-btn" data-size="42">42mm</button>
+        <button class="size-btn" data-size="43">43mm</button>
+        <button class="size-btn" data-size="44">44+mm</button>
+      </div>
+      <p style="font-family:var(--fn-mono);font-size:10px;color:var(--muted);margin-top:8px;line-height:1.5">
+        Filters results from the API keyword search. Multiple sizes can be selected.
+      </p>
+    </div>
+
+    <!-- Watch type -->
+    <div class="f-section">
+      <span class="f-label">Watch type</span>
+      <div class="check-list" id="typeList">
+        <label class="c-item"><input type="checkbox" data-group="types" value="homage"><span class="c-box"></span><span class="c-name">Homage / inspired</span></label>
+        <label class="c-item"><input type="checkbox" data-group="types" value="original"><span class="c-box"></span><span class="c-name">Original design</span></label>
+        <label class="c-item"><input type="checkbox" data-group="types" value="diver"><span class="c-box"></span><span class="c-name">Diver</span></label>
+        <label class="c-item"><input type="checkbox" data-group="types" value="dress"><span class="c-box"></span><span class="c-name">Dress / formal</span></label>
+        <label class="c-item"><input type="checkbox" data-group="types" value="field"><span class="c-box"></span><span class="c-name">Field / military</span></label>
+        <label class="c-item"><input type="checkbox" data-group="types" value="gmt"><span class="c-box"></span><span class="c-name">GMT</span></label>
+        <label class="c-item"><input type="checkbox" data-group="types" value="chronograph"><span class="c-box"></span><span class="c-name">Chronograph</span></label>
+      </div>
+    </div>
+
+    <!-- Movement -->
+    <div class="f-section">
+      <span class="f-label">Movement</span>
+      <div class="check-list">
+        <label class="c-item"><input type="checkbox" data-group="movements" value="NH35A"><span class="c-box"></span><span class="c-name">NH35A</span><span class="c-cnt">auto</span></label>
+        <label class="c-item"><input type="checkbox" data-group="movements" value="NH34"><span class="c-box"></span><span class="c-name">NH34 GMT</span><span class="c-cnt">auto</span></label>
+        <label class="c-item"><input type="checkbox" data-group="movements" value="NH38"><span class="c-box"></span><span class="c-name">NH38</span><span class="c-cnt">auto</span></label>
+        <label class="c-item"><input type="checkbox" data-group="movements" value="Miyota 9015"><span class="c-box"></span><span class="c-name">Miyota 9015</span><span class="c-cnt">auto</span></label>
+        <label class="c-item"><input type="checkbox" data-group="movements" value="VK63"><span class="c-box"></span><span class="c-name">VK63 meca-quartz</span><span class="c-cnt">q</span></label>
+      </div>
+    </div>
+
+    <!-- Price -->
+    <div class="f-section">
+      <span class="f-label">Price (USD)</span>
+      <div class="price-row">
+        <input type="number" id="priceMin" placeholder="0" min="0">
+        <span>–</span>
+        <input type="number" id="priceMax" placeholder="∞" min="0">
+      </div>
+    </div>
+
+    <button class="reset-btn" id="resetBtn">✕  Clear all filters</button>
+  </aside>
+
+  <!-- MAIN -->
+  <main>
+    <div class="toolbar">
+      <div class="results-count" id="resultsCount">Loading…</div>
+      <div class="sort-wrap">
+        <label>SORT</label>
+        <select class="sort-select" id="sortSelect">
+          <option value="SALE_PRICE_ASC">Price: low to high</option>
+          <option value="SALE_PRICE_DESC">Price: high to low</option>
+          <option value="LAST_VOLUME_DESC">Best selling</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="chips" id="chipsBar"></div>
+    <div class="grid"  id="watchGrid">
+      <div class="state-box">
+        <div class="spinner"></div>
+        <p>Fetching watches from AliExpress…</p>
+      </div>
+    </div>
+    <div class="pagination" id="pagination"></div>
+  </main>
+</div>
+
+<script>
+// ─── CONFIG ──────────────────────────────────────────────────────────────────
+// Change this to your Vercel deployment URL in production.
+// In local dev (vercel dev), the proxy runs on the same origin.
+const API_BASE = "/api/search";
+
+// ─── CLIENT-SIDE ENRICHMENT ───────────────────────────────────────────────────
+// AliExpress API doesn't return structured specs like case size, movement, etc.
+// We infer these from product titles via keyword matching.
+// This gets you 70-80% accuracy without manual tagging for the MVP.
+
+const COLOR_KEYWORDS = {
+  black:     ["black","noir","negro","matte black","dlc"],
+  blue:      ["blue","navy","cobalt","bleu","azul","midnight"],
+  green:     ["green","olive","military green","forest","verde"],
+  white:     ["white","cream","ivory","polar","blanc"],
+  silver:    ["silver","white dial","light"],
+  orange:    ["orange","terra","copper"],
+  champagne: ["champagne","gold dial","sunburst gold","cognac","caramel"],
+  red:       ["red","burgundy","cherry","bordeaux"],
+  grey:      ["grey","gray","slate","anthracite"],
+};
+
+const TYPE_KEYWORDS = {
+  diver:       ["diver","dive watch","200m","300m","1000m","iso6425","submariner","tuna"],
+  dress:       ["dress","slim","thin","formal","classic"],
+  field:       ["field","military","explorer","pilot","aviation"],
+  gmt:         ["gmt","dual time","traveler","2 time zone"],
+  chronograph: ["chronograph","chrono","stopwatch","tachymeter"],
+  homage:      ["submariner","datejust","daytona","explorer","speedmaster","seamaster","royal oak","nautilus","bb58","black bay","pelagos","aquanaut","pilot","flieger"],
+  original:    [],
+};
+
+const MOVEMENT_KEYWORDS = {
+  "NH35A":       ["nh35"],
+  "NH34":        ["nh34","gmt movement"],
+  "NH38":        ["nh38"],
+  "Miyota 9015": ["miyota 9015","miyota9015"],
+  "VK63":        ["vk63","vk64","meca-quartz","mecha-quartz"],
+};
+
+function inferColor(title) {
+  const t = title.toLowerCase();
+  for (const [color, kws] of Object.entries(COLOR_KEYWORDS))
+    if (kws.some(k => t.includes(k))) return color;
+  return null;
+}
+
+function inferTypes(title) {
+  const t = title.toLowerCase();
+  const found = [];
+  for (const [type, kws] of Object.entries(TYPE_KEYWORDS))
+    if (kws.some(k => t.includes(k))) found.push(type);
+  if (!found.includes("homage") && !found.includes("original") && found.length === 0)
+    return ["original"];
+  return found;
+}
+
+function inferMovement(title) {
+  const t = title.toLowerCase();
+  for (const [mov, kws] of Object.entries(MOVEMENT_KEYWORDS))
+    if (kws.some(k => t.includes(k))) return mov;
+  return null;
+}
+
+function inferCaseSize(title) {
+  // Look for patterns like "40mm", "40 mm", "case 40"
+  const m = title.match(/\b(3[2-9]|4[0-9]|5[0-2])[\s]?mm\b/i);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+function enrichWatch(w) {
+  return {
+    ...w,
+    dialColor: inferColor(w.name),
+    types:     inferTypes(w.name),
+    movement:  inferMovement(w.name),
+    caseSize:  inferCaseSize(w.name),
+  };
+}
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let state = {
+  query:      "chinese microbrand watch",
+  search:     "",
+  colors:     new Set(),
+  sizes:      new Set(),
+  types:      new Set(),
+  movements:  new Set(),
+  priceMin:   null,
+  priceMax:   null,
+  sort:       "SALE_PRICE_ASC",
+  page:       1,
+  pageSize:   24,
+};
+
+let allWatches = [];    // raw from API (enriched)
+let totalCount  = 0;
+let loading     = false;
+
+// ─── API ─────────────────────────────────────────────────────────────────────
+async function fetchWatches() {
+  if (loading) return;
+  loading = true;
+  showLoading();
+
+  const params = new URLSearchParams({
+    q:        state.query + (state.search ? " " + state.search : ""),
+    page:     state.page,
+    pageSize: state.pageSize,
+    sort:     state.sort,
+  });
+
+  try {
+    const res  = await fetch(`${API_BASE}?${params}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    if (data.error) throw new Error(data.error);
+
+    allWatches = (data.watches || []).map(enrichWatch);
+    totalCount = data.total || allWatches.length;
+    renderAll();
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    loading = false;
+  }
+}
+
+// ─── CLIENT FILTER (on enriched data) ────────────────────────────────────────
+function clientFilter(watches) {
+  return watches.filter(w => {
+    if (state.colors.size    && !state.colors.has(w.dialColor))              return false;
+    if (state.sizes.size     && !state.sizes.has(String(w.caseSize)))        return false;
+    if (state.types.size     && !state.types.values().some(t => w.types?.includes(t))) return false;
+    if (state.movements.size && !state.movements.has(w.movement))            return false;
+    if (state.priceMin !== null && w.price < state.priceMin)                 return false;
+    if (state.priceMax !== null && w.price > state.priceMax)                 return false;
+    return true;
+  });
+}
+
+// ─── RENDER ──────────────────────────────────────────────────────────────────
+function renderAll() {
+  const filtered = clientFilter(allWatches);
+  renderGrid(filtered);
+  renderCount(filtered.length);
+  renderChips();
+  renderPagination();
+}
+
+function showLoading() {
+  document.getElementById("watchGrid").innerHTML =
+    `<div class="state-box"><div class="spinner"></div><p>Fetching watches from AliExpress…</p></div>`;
+  document.getElementById("resultsCount").textContent = "Loading…";
+}
+
+function showError(msg) {
+  document.getElementById("watchGrid").innerHTML =
+    `<div class="state-box">
+       <span class="big">⚠</span>
+       <p>Could not reach the API.<br><small>${msg}</small></p>
+       <p style="margin-top:12px;font-size:10px;opacity:.6">Make sure you've deployed the /api/search function and set ALI_APP_KEY + ALI_APP_SECRET in Vercel.</p>
+     </div>`;
+  document.getElementById("resultsCount").textContent = "Error";
+}
+
+function renderCount(n) {
+  document.getElementById("resultsCount").innerHTML =
+    `Showing <strong>${n}</strong> of ${totalCount} watches`;
+  document.getElementById("headerCount").textContent = `${totalCount} results`;
+}
+
+function renderGrid(watches) {
+  const grid = document.getElementById("watchGrid");
+  if (!watches.length) {
+    grid.innerHTML = `<div class="state-box"><span class="big">⌚</span><p>No watches match your filters. Try adjusting them or choosing a different brand.</p></div>`;
+    return;
+  }
+  grid.innerHTML = watches.map(cardHTML).join("");
+}
+
+function cardHTML(w) {
+  const isHomage = w.types?.includes("homage");
+  const badge    = isHomage
+    ? `<span class="badge badge-homage">Homage</span>`
+    : `<span class="badge badge-original">Original</span>`;
+
+  const img = w.image
+    ? `<img src="${w.image}" alt="${w.name}" loading="lazy">`
+    : `<span class="no-img">⌚</span>`;
+
+  const specs = [
+    w.movement,
+    w.caseSize ? `${w.caseSize}mm` : null,
+  ].filter(Boolean).join(" · ");
+
+  const stars = w.rating ? "★".repeat(Math.round(w.rating)) + `<small> ${w.rating.toFixed(1)}</small>` : "";
+
+  return `
+  <a class="card" href="${w.affiliateUrl}" target="_blank" rel="noopener noreferrer">
+    <div class="card-img">
+      ${img}
+      ${badge}
+    </div>
+    <div class="card-body">
+      <div class="card-brand">${w.category || "Watch"}</div>
+      <div class="card-name">${w.name}</div>
+      ${specs ? `<div class="card-specs">${specs}</div>` : ""}
+      ${stars   ? `<div class="card-specs" style="color:var(--accent)">${stars} <span style="color:var(--muted)">· ${w.sold} sold</span></div>` : ""}
+    </div>
+    <div class="card-footer">
+      <div class="price">$${w.price.toFixed(0)} <small>USD</small></div>
+      <span class="ali-btn">View on Ali →</span>
+    </div>
+  </a>`;
+}
+
+function renderChips() {
+  const bar = document.getElementById("chipsBar");
+  const chips = [];
+
+  state.colors.forEach(c   => chips.push({ label: `Color: ${c}`,     rm: () => state.colors.delete(c)    }));
+  state.sizes.forEach(s    => chips.push({ label: `${s}mm`,           rm: () => state.sizes.delete(s)     }));
+  state.types.forEach(t    => chips.push({ label: `Type: ${t}`,       rm: () => state.types.delete(t)     }));
+  state.movements.forEach(m=> chips.push({ label: m,                  rm: () => state.movements.delete(m) }));
+  if (state.priceMin !== null) chips.push({ label: `≥ $${state.priceMin}`, rm: () => { state.priceMin = null; document.getElementById("priceMin").value = ""; } });
+  if (state.priceMax !== null) chips.push({ label: `≤ $${state.priceMax}`, rm: () => { state.priceMax = null; document.getElementById("priceMax").value = ""; } });
+
+  bar.innerHTML = chips.map((c, i) =>
+    `<div class="chip" data-i="${i}">${c.label}<span class="x">✕</span></div>`
+  ).join("");
+
+  bar.querySelectorAll(".chip").forEach((el, i) => {
+    el.addEventListener("click", () => { chips[i].rm(); syncUI(); renderAll(); });
+  });
+}
+
+function renderPagination() {
+  const totalPages = Math.ceil(totalCount / state.pageSize);
+  const pg = document.getElementById("pagination");
+  if (totalPages <= 1) { pg.innerHTML = ""; return; }
+  pg.innerHTML = `
+    <button class="page-btn" id="pgPrev" ${state.page <= 1 ? "disabled" : ""}>← Prev</button>
+    <span class="page-info">Page ${state.page} of ${totalPages}</span>
+    <button class="page-btn" id="pgNext" ${state.page >= totalPages ? "disabled" : ""}>Next →</button>
+  `;
+  document.getElementById("pgPrev")?.addEventListener("click", () => { state.page--; fetchWatches(); });
+  document.getElementById("pgNext")?.addEventListener("click", () => { state.page++; fetchWatches(); });
+}
+
+// ─── UI SYNC ─────────────────────────────────────────────────────────────────
+function syncUI() {
+  // swatches
+  document.querySelectorAll(".swatch").forEach(el =>
+    el.classList.toggle("active", state.colors.has(el.dataset.color))
+  );
+  // size buttons
+  document.querySelectorAll(".size-btn").forEach(el =>
+    el.classList.toggle("active", state.sizes.has(el.dataset.size))
+  );
+  // checkboxes
+  document.querySelectorAll("[data-group]").forEach(inp => {
+    const s = state[inp.dataset.group];
+    if (s) inp.checked = s.has(inp.value);
+  });
+}
+
+// ─── EVENT LISTENERS ─────────────────────────────────────────────────────────
+const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+
+function initEvents() {
+  // Header search — triggers new API call
+  document.getElementById("searchInput").addEventListener("input", debounce(e => {
+    state.search = e.target.value.trim();
+    state.page = 1;
+    fetchWatches();
+  }, 500));
+
+  // Brand pills
+  document.getElementById("brandPills").addEventListener("click", e => {
+    const btn = e.target.closest(".q-pill");
+    if (!btn) return;
+    document.querySelectorAll(".q-pill").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    state.query = btn.dataset.q;
+    state.page  = 1;
+    fetchWatches();
+  });
+
+  // Color swatches
+  document.getElementById("colorSwatches").addEventListener("click", e => {
+    const sw = e.target.closest(".swatch");
+    if (!sw) return;
+    const c = sw.dataset.color;
+    state.colors.has(c) ? state.colors.delete(c) : state.colors.add(c);
+    syncUI();
+    renderAll();
+  });
+
+  // Case size buttons
+  document.getElementById("sizeGrid").addEventListener("click", e => {
+    const btn = e.target.closest(".size-btn");
+    if (!btn) return;
+    const s = btn.dataset.size;
+    state.sizes.has(s) ? state.sizes.delete(s) : state.sizes.add(s);
+    syncUI();
+    renderAll();
+  });
+
+  // Checkboxes (delegated)
+  document.querySelector("aside").addEventListener("change", e => {
+    if (!e.target.dataset.group) return;
+    const g = e.target.dataset.group;
+    const v = e.target.value;
+    e.target.checked ? state[g].add(v) : state[g].delete(v);
+    renderAll();
+  });
+
+  // Price
+  document.getElementById("priceMin").addEventListener("input", debounce(e => {
+    state.priceMin = e.target.value ? +e.target.value : null; renderAll();
+  }, 400));
+  document.getElementById("priceMax").addEventListener("input", debounce(e => {
+    state.priceMax = e.target.value ? +e.target.value : null; renderAll();
+  }, 400));
+
+  // Sort — triggers new API call (sort param goes to API)
+  document.getElementById("sortSelect").addEventListener("change", e => {
+    state.sort = e.target.value;
+    state.page = 1;
+    fetchWatches();
+  });
+
+  // Reset
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    state.colors    = new Set();
+    state.sizes     = new Set();
+    state.types     = new Set();
+    state.movements = new Set();
+    state.priceMin  = null;
+    state.priceMax  = null;
+    document.getElementById("priceMin").value = "";
+    document.getElementById("priceMax").value = "";
+    syncUI();
+    renderAll();
+  });
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+initEvents();
+fetchWatches();
+</script>
+</body>
+</html>
