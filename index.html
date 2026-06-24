@@ -289,6 +289,19 @@ main { padding: 20px clamp(16px,3vw,32px); }
   padding: 2px 5px; font-size: 10px;
   font-family: var(--fn-mono); color: var(--muted);
 }
+.card-inspired {
+  font-family: var(--fn-mono); font-size: 10px;
+  color: var(--accent); opacity: .8; margin-top: 1px;
+}
+.card-rating {
+  font-size: 10px; color: var(--accent);
+  font-family: var(--fn-mono); margin-top: 2px;
+}
+.sold-cnt { color: var(--muted); }
+.pill-cnt {
+  font-size: 9px; color: var(--muted);
+  margin-left: 2px;
+}
 
 .card-footer {
   display: flex; align-items: center; justify-content: space-between;
@@ -413,7 +426,7 @@ main { padding: 20px clamp(16px,3vw,32px); }
         <button class="size-btn" data-size="41">41mm</button>
         <button class="size-btn" data-size="42">42mm</button>
         <button class="size-btn" data-size="43">43mm</button>
-        <button class="size-btn" data-size="44">44+mm</button>
+        <button class="size-btn" data-size="44+">44+mm</button>
       </div>
       <p style="font-family:var(--fn-mono);font-size:10px;color:var(--muted);margin-top:8px;line-height:1.5">
         Filters results from the API keyword search. Multiple sizes can be selected.
@@ -466,9 +479,11 @@ main { padding: 20px clamp(16px,3vw,32px); }
       <div class="sort-wrap">
         <label>SORT</label>
         <select class="sort-select" id="sortSelect">
-          <option value="SALE_PRICE_ASC">Price: low to high</option>
-          <option value="SALE_PRICE_DESC">Price: high to low</option>
-          <option value="LAST_VOLUME_DESC">Best selling</option>
+          <option value="price-asc">Price: low to high</option>
+          <option value="price-desc">Price: high to low</option>
+          <option value="sold-desc">Best selling</option>
+          <option value="rating-desc">Top rated</option>
+          <option value="name-asc">Name A–Z</option>
         </select>
       </div>
     </div>
@@ -477,269 +492,196 @@ main { padding: 20px clamp(16px,3vw,32px); }
     <div class="grid"  id="watchGrid">
       <div class="state-box">
         <div class="spinner"></div>
-        <p>Fetching watches from AliExpress…</p>
+        <p>Loading catalogue…</p>
       </div>
     </div>
     <div class="pagination" id="pagination"></div>
   </main>
 </div>
 
+
 <script>
-// ─── CONFIG ──────────────────────────────────────────────────────────────────
-const API_BASE = "/api/search";
-
-// Known quality microbrand queries — each maps a brand pill to one or more
-// specific AliExpress search terms. Using brand name + "watch" is far more
-// accurate than a generic query.
-const BRAND_QUERIES = {
-  all:             ["addiesdive watch","san martin watch","tandorio watch","ixdao watch","steeldive watch","escapement time watch"],
-  addiesdive:      ["addiesdive watch"],
-  "san martin":    ["san martin watch"],
-  tandorio:        ["tandorio watch"],
-  ixdao:           ["ixdao watch"],
-  steeldive:       ["steeldive watch"],
-  phylida:         ["phylida watch"],
-  "escapement time":["escapement time watch"],
-  cronos:          ["cronos watch"],
-};
-
-// ─── ENRICHMENT — infer specs from product title ──────────────────────────────
-const COLOR_KW = {
-  black:     ["black","noir","matte black","dlc","pvd black"],
-  blue:      ["blue","navy","cobalt","midnight","aqua","ocean"],
-  green:     ["green","olive","forest","military green","hunter"],
-  white:     ["white","cream","ivory","polar","silver dial"],
-  silver:    ["silver dial","light grey dial"],
-  orange:    ["orange","terra","copper","burnt"],
-  champagne: ["champagne","gold dial","sunburst gold","cognac","caramel","gilt"],
-  red:       ["red","burgundy","cherry","bordeaux","crimson"],
-  grey:      ["grey","gray","slate","anthracite","charcoal"],
-};
-
-const TYPE_KW = {
-  diver:       ["diver","dive","200m","300m","500m","1000m","iso6425","submariner style","tuna can"],
-  dress:       ["dress watch","slim","thin","formal","classic dress"],
-  field:       ["field watch","military","tool watch","pilot","aviation","flieger"],
-  gmt:         ["gmt","dual time","two time zone","traveler gmt"],
-  chronograph: ["chronograph","chrono","stopwatch","tachymeter"],
-  homage:      ["submariner","datejust","daytona","seamaster","speedmaster","royal oak","nautilus","black bay","bb58","pelagos","aquanaut","explorer style","snowflake"],
-};
-
-const MOV_KW = {
-  "NH35A":       ["nh35a","nh35"],
-  "NH34 GMT":    ["nh34"],
-  "NH38":        ["nh38"],
-  "Miyota 9015": ["miyota 9015","miyota9015","9015"],
-  "VK63":        ["vk63","vk64","meca-quartz","mecha-quartz"],
-  "ST2130":      ["st2130","st21"],
-};
-
-function inferColor(t) {
-  t = t.toLowerCase();
-  for (const [c, kws] of Object.entries(COLOR_KW))
-    if (kws.some(k => t.includes(k))) return c;
-  return null;
-}
-
-function inferTypes(t) {
-  t = t.toLowerCase();
-  const found = [];
-  for (const [type, kws] of Object.entries(TYPE_KW))
-    if (kws.some(k => t.includes(k))) found.push(type);
-  return found.length ? found : ["original"];
-}
-
-function inferMovement(t) {
-  t = t.toLowerCase();
-  for (const [mov, kws] of Object.entries(MOV_KW))
-    if (kws.some(k => t.includes(k))) return mov;
-  return null;
-}
-
-function inferSize(t) {
-  const m = t.match(/\b(3[2-9]|4[0-9]|5[0-2])\s?mm\b/i);
-  return m ? parseInt(m[1], 10) : null;
-}
-
-function enrich(w) {
-  return { ...w, dialColor: inferColor(w.name), types: inferTypes(w.name), movement: inferMovement(w.name), caseSize: inferSize(w.name) };
-}
+// ─── All data comes from watches.json — no API calls for the catalog ──────────
+const WATCHES_URL = "/watches.json";
 
 // ─── STATE ───────────────────────────────────────────────────────────────────
+let DB = [];          // full catalogue loaded once from watches.json
 let state = {
-  brand:     "all",       // key into BRAND_QUERIES
-  search:    "",          // free text appended to every query
+  brand:     "all",
+  search:    "",
   colors:    new Set(),
-  sizes:     new Set(),
+  sizes:     new Set(),   // stores numbers as strings e.g. "40", "44+" for 44+
   types:     new Set(),
   movements: new Set(),
   priceMin:  null,
   priceMax:  null,
-  sort:      "SALE_PRICE_ASC",
-  page:      1,
-  pageSize:  20,
+  sort:      "price-asc",
 };
 
-let allWatches = [];
-let totalCount  = 0;
-let loading     = false;
-
-// ─── BUILD KEYWORD QUERY ──────────────────────────────────────────────────────
-// Filters that can be expressed as keywords get added to the API query so
-// AliExpress searches across its full catalogue, not just the current page.
-function buildKeywords(baseQuery) {
-  const parts = [baseQuery];
-
-  if (state.search) parts.push(state.search);
-
-  // Color → append color keyword (AliExpress understands "blue dial", etc.)
-  if (state.colors.size === 1) parts.push([...state.colors][0] + " dial");
-
-  // Type keywords
-  const typeKwMap = {
-    diver: "diver", dress: "dress watch", field: "field watch",
-    gmt: "gmt", chronograph: "chronograph",
-    homage: "", original: "",
-  };
-  state.types.forEach(t => { if (typeKwMap[t]) parts.push(typeKwMap[t]); });
-
-  // Movement
-  if (state.movements.size === 1) parts.push([...state.movements][0]);
-
-  // Size — expressed as "40mm" keyword
-  if (state.sizes.size === 1) parts.push([...state.sizes][0] + "mm");
-
-  return parts.filter(Boolean).join(" ");
-}
-
-// ─── FETCH ────────────────────────────────────────────────────────────────────
-// When brand = "all", we fire parallel requests for each microbrand query
-// so we always get real microbrand results rather than generic ones.
-async function fetchWatches() {
-  if (loading) return;
-  loading = true;
+// ─── LOAD DB ─────────────────────────────────────────────────────────────────
+async function loadDB() {
   showLoading();
-
-  const baseQueries = BRAND_QUERIES[state.brand] || BRAND_QUERIES.all;
-
   try {
-    // Fire all brand queries in parallel (capped at pageSize / numQueries each)
-    const perQuery = Math.ceil(state.pageSize / baseQueries.length);
-
-    const requests = baseQueries.map(bq => {
-      const q = buildKeywords(bq);
-      const params = new URLSearchParams({ q, page: state.page, pageSize: perQuery, sort: state.sort });
-      return fetch(`${API_BASE}?${params}`).then(r => r.json());
-    });
-
-    const results = await Promise.all(requests);
-
-    // Merge, deduplicate by id, shuffle so brands interleave
-    const seen = new Set();
-    let merged = [];
-    results.forEach(data => {
-      if (data.error) return;
-      (data.watches || []).forEach(w => {
-        if (!seen.has(w.id)) { seen.add(w.id); merged.push(enrich(w)); }
-      });
-    });
-
-    // Shuffle so no single brand dominates the top
-    if (state.brand === "all") merged = shuffle(merged);
-
-    allWatches = merged;
-    totalCount = results.reduce((s, d) => s + (d.total || 0), 0);
-
+    const res = await fetch(WATCHES_URL);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    DB = await res.json();
+    // Populate brand pills dynamically from actual data
+    buildBrandPills();
     renderAll();
   } catch (err) {
-    showError(err.message);
-  } finally {
-    loading = false;
+    showError("Could not load watches.json: " + err.message);
   }
 }
 
-function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
+// ─── BUILD BRAND PILLS from actual DB data ────────────────────────────────────
+function buildBrandPills() {
+  const brands = [...new Set(DB.map(w => w.brand))].sort();
+  const container = document.getElementById("brandPills");
+  container.innerHTML =
+    `<button class="q-pill active" data-brand="all">All brands <span class="pill-cnt">${DB.length}</span></button>` +
+    brands.map(b => {
+      const cnt = DB.filter(w => w.brand === b).length;
+      return `<button class="q-pill" data-brand="${b.toLowerCase()}">${b} <span class="pill-cnt">${cnt}</span></button>`;
+    }).join("");
+
+  // re-attach listener
+  container.addEventListener("click", e => {
+    const btn = e.target.closest(".q-pill");
+    if (!btn) return;
+    container.querySelectorAll(".q-pill").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    state.brand = btn.dataset.brand;
+    renderAll();
+  });
 }
 
-// ─── CLIENT FILTER — secondary pass for filters not expressible as keywords ───
-// (multiple colors, multiple sizes, price range)
-function clientFilter(watches) {
+// ─── FILTER ──────────────────────────────────────────────────────────────────
+function matchesSize(watch, sizeSet) {
+  if (!sizeSet.size) return true;
+  const s = watch.caseSize;
+  if (!s) return false;
+  // "44+" bucket covers 44mm and above
+  if (sizeSet.has("44+") && s >= 44) return true;
+  return sizeSet.has(String(s));
+}
+
+function applyFilters(watches) {
   return watches.filter(w => {
-    if (state.colors.size > 1    && !state.colors.has(w.dialColor))                          return false;
-    if (state.sizes.size > 1     && !state.sizes.has(String(w.caseSize)))                    return false;
-    if (state.priceMin !== null  && w.price < state.priceMin)                                return false;
-    if (state.priceMax !== null  && w.price > state.priceMax)                                return false;
+    // Brand
+    if (state.brand !== "all" && w.brand.toLowerCase() !== state.brand) return false;
+
+    // Free text search: brand, model, name, tags, inspiredBy
+    if (state.search) {
+      const q = state.search.toLowerCase();
+      const haystack = [w.brand, w.model, w.name, ...(w.tags || []), w.inspiredBy || ""].join(" ").toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
+
+    // Dial color
+    if (state.colors.size && !state.colors.has(w.dialColor)) return false;
+
+    // Case size
+    if (!matchesSize(w, state.sizes)) return false;
+
+    // Type (OR logic — watch matches if it has ANY selected type)
+    if (state.types.size && !w.type?.some(t => state.types.has(t))) return false;
+
+    // Movement
+    if (state.movements.size && !state.movements.has(w.movement)) return false;
+
+    // Price
+    if (state.priceMin !== null && (w.price ?? 0) < state.priceMin) return false;
+    if (state.priceMax !== null && (w.price ?? 0) > state.priceMax) return false;
+
     return true;
   });
 }
 
+// ─── SORT ────────────────────────────────────────────────────────────────────
+function applySort(watches) {
+  const arr = [...watches];
+  switch (state.sort) {
+    case "price-asc":  return arr.sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
+    case "price-desc": return arr.sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
+    case "sold-desc":  return arr.sort((a, b) => (b.sold ?? 0) - (a.sold ?? 0));
+    case "rating-desc":return arr.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+    case "name-asc":   return arr.sort((a, b) => a.name.localeCompare(b.name));
+    default:           return arr;
+  }
+}
+
 // ─── RENDER ──────────────────────────────────────────────────────────────────
 function renderAll() {
-  const filtered = clientFilter(allWatches);
+  const filtered = applySort(applyFilters(DB));
   renderGrid(filtered);
   renderCount(filtered.length);
   renderChips();
-  renderPagination();
 }
 
 function showLoading() {
   document.getElementById("watchGrid").innerHTML =
-    `<div class="state-box"><div class="spinner"></div><p>Searching AliExpress for microbrands…</p></div>`;
+    `<div class="state-box"><div class="spinner"></div><p>Loading catalogue…</p></div>`;
   document.getElementById("resultsCount").textContent = "Loading…";
 }
 
 function showError(msg) {
   document.getElementById("watchGrid").innerHTML =
-    `<div class="state-box">
-       <span class="big">⚠</span>
-       <p>Could not reach the API.<br><small>${msg}</small></p>
-     </div>`;
-  document.getElementById("resultsCount").textContent = "Error";
+    `<div class="state-box"><span class="big">⚠</span><p>${msg}</p></div>`;
 }
 
 function renderCount(n) {
-  document.getElementById("resultsCount").innerHTML = `Showing <strong>${n}</strong> watches`;
-  document.getElementById("headerCount").textContent = `${allWatches.length} loaded`;
+  document.getElementById("resultsCount").innerHTML =
+    `Showing <strong>${n}</strong> of ${DB.length} watches`;
+  document.getElementById("headerCount").textContent = `${DB.length} curated`;
 }
 
 function renderGrid(watches) {
   const grid = document.getElementById("watchGrid");
   if (!watches.length) {
-    grid.innerHTML = `<div class="state-box"><span class="big">⌚</span><p>No watches match these filters. Try broadening your search.</p></div>`;
+    grid.innerHTML = `<div class="state-box"><span class="big">⌚</span><p>No watches match these filters.<br>Try broadening your search.</p></div>`;
     return;
   }
   grid.innerHTML = watches.map(cardHTML).join("");
 }
 
 function cardHTML(w) {
-  const isHomage = w.types?.includes("homage");
+  const isHomage   = w.type?.includes("homage");
+  const isOriginal = w.type?.includes("original") && !isHomage;
   const badge = isHomage
     ? `<span class="badge badge-homage">Homage</span>`
     : `<span class="badge badge-original">Original</span>`;
 
-  const img = w.image
-    ? `<img src="${w.image}" alt="${w.name}" loading="lazy">`
+  const img = w.image && !w.image.includes("placeholder")
+    ? `<img src="${w.image}" alt="${w.name}" loading="lazy" onerror="this.style.display='none'">`
     : `<span class="no-img">⌚</span>`;
 
-  const specs = [w.movement, w.caseSize ? `${w.caseSize}mm` : null].filter(Boolean).join(" · ");
-  const stars = w.rating ? "★".repeat(Math.round(w.rating)) + ` ${w.rating.toFixed(1)}` : "";
+  // Spec pills row
+  const specs = [
+    w.movement,
+    w.caseSize   ? `${w.caseSize}mm`          : null,
+    w.waterResistance ? `${w.waterResistance}m WR` : null,
+  ].filter(Boolean).join(" · ");
+
+  const stars = w.rating
+    ? `${"★".repeat(Math.round(w.rating))}${"☆".repeat(5 - Math.round(w.rating))} ${w.rating.toFixed(1)}`
+    : "";
+
+  const inspiredLine = w.inspiredBy
+    ? `<div class="card-inspired">≈ ${w.inspiredBy}</div>`
+    : "";
 
   return `
-  <a class="card" href="${w.affiliateUrl || "#"}" target="_blank" rel="noopener noreferrer">
+  <a class="card" href="${w.aliUrl || "#"}" target="_blank" rel="noopener noreferrer">
     <div class="card-img">${img}${badge}</div>
     <div class="card-body">
-      <div class="card-brand">${w.category || "Watch"}</div>
+      <div class="card-brand">${w.brand}</div>
       <div class="card-name">${w.name}</div>
+      ${inspiredLine}
       ${specs ? `<div class="card-specs">${specs}</div>` : ""}
-      ${stars  ? `<div class="card-specs" style="color:var(--accent)">${stars}<span style="color:var(--muted)"> · ${Number(w.sold).toLocaleString()} sold</span></div>` : ""}
+      ${stars  ? `<div class="card-rating">${stars}<span class="sold-cnt"> · ${Number(w.sold).toLocaleString()} sold</span></div>` : ""}
     </div>
     <div class="card-footer">
-      <div class="price">$${w.price?.toFixed(0) ?? "—"} <small>USD</small></div>
+      <div class="price">${w.price != null ? `$${w.price.toFixed(0)}` : "—"} <small>USD</small></div>
       <span class="ali-btn">View on Ali →</span>
     </div>
   </a>`;
@@ -748,98 +690,81 @@ function cardHTML(w) {
 function renderChips() {
   const bar = document.getElementById("chipsBar");
   const chips = [];
-  state.colors.forEach(c    => chips.push({ label: `Color: ${c}`,   rm: () => { state.colors.delete(c);    triggerFetch(); } }));
-  state.sizes.forEach(s     => chips.push({ label: `${s}mm`,         rm: () => { state.sizes.delete(s);     triggerFetch(); } }));
-  state.types.forEach(t     => chips.push({ label: `Type: ${t}`,     rm: () => { state.types.delete(t);     triggerFetch(); } }));
-  state.movements.forEach(m => chips.push({ label: m,                rm: () => { state.movements.delete(m); triggerFetch(); } }));
-  if (state.priceMin !== null) chips.push({ label: `≥ $${state.priceMin}`, rm: () => { state.priceMin = null; document.getElementById("priceMin").value = ""; renderAll(); } });
-  if (state.priceMax !== null) chips.push({ label: `≤ $${state.priceMax}`, rm: () => { state.priceMax = null; document.getElementById("priceMax").value = ""; renderAll(); } });
+  state.colors.forEach(c    => chips.push({ label: `Color: ${c}`,   rm: () => state.colors.delete(c)    }));
+  state.sizes.forEach(s     => chips.push({ label: `${s}mm`,         rm: () => state.sizes.delete(s)     }));
+  state.types.forEach(t     => chips.push({ label: `Type: ${t}`,     rm: () => state.types.delete(t)     }));
+  state.movements.forEach(m => chips.push({ label: m,                rm: () => state.movements.delete(m) }));
+  if (state.priceMin != null) chips.push({ label: `≥ $${state.priceMin}`, rm: () => { state.priceMin = null; document.getElementById("priceMin").value = ""; } });
+  if (state.priceMax != null) chips.push({ label: `≤ $${state.priceMax}`, rm: () => { state.priceMax = null; document.getElementById("priceMax").value = ""; } });
 
-  bar.innerHTML = chips.map((c, i) => `<div class="chip" data-i="${i}">${c.label}<span class="x">✕</span></div>`).join("");
-  bar.querySelectorAll(".chip").forEach((el, i) => el.addEventListener("click", () => { chips[i].rm(); syncUI(); }));
-}
-
-function renderPagination() {
-  const pg = document.getElementById("pagination");
-  pg.innerHTML = `
-    <button class="page-btn" id="pgPrev" ${state.page <= 1 ? "disabled" : ""}>← Prev</button>
-    <span class="page-info">Page ${state.page}</span>
-    <button class="page-btn" id="pgNext">Next →</button>
-  `;
-  document.getElementById("pgPrev")?.addEventListener("click", () => { state.page--; fetchWatches(); });
-  document.getElementById("pgNext")?.addEventListener("click", () => { state.page++; fetchWatches(); });
+  bar.innerHTML = chips.map((c, i) =>
+    `<div class="chip" data-i="${i}">${c.label}<span class="x"> ✕</span></div>`
+  ).join("");
+  bar.querySelectorAll(".chip").forEach((el, i) =>
+    el.addEventListener("click", () => { chips[i].rm(); syncUI(); renderAll(); })
+  );
 }
 
 // ─── UI SYNC ─────────────────────────────────────────────────────────────────
 function syncUI() {
-  document.querySelectorAll(".swatch").forEach(el => el.classList.toggle("active", state.colors.has(el.dataset.color)));
-  document.querySelectorAll(".size-btn").forEach(el => el.classList.toggle("active", state.sizes.has(el.dataset.size)));
+  document.querySelectorAll(".swatch").forEach(el =>
+    el.classList.toggle("active", state.colors.has(el.dataset.color))
+  );
+  document.querySelectorAll(".size-btn").forEach(el =>
+    el.classList.toggle("active", state.sizes.has(el.dataset.size))
+  );
   document.querySelectorAll("[data-group]").forEach(inp => {
     const s = state[inp.dataset.group];
     if (s) inp.checked = s.has(inp.value);
   });
 }
 
-// triggerFetch — re-fetches when filters that affect keywords change
-function triggerFetch() { state.page = 1; syncUI(); fetchWatches(); }
-
 // ─── EVENTS ──────────────────────────────────────────────────────────────────
 const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 
 function initEvents() {
-  // Search box
+  // Search
   document.getElementById("searchInput").addEventListener("input", debounce(e => {
-    state.search = e.target.value.trim(); triggerFetch();
-  }, 500));
+    state.search = e.target.value.trim(); renderAll();
+  }, 250));
 
-  // Brand pills
-  document.getElementById("brandPills").addEventListener("click", e => {
-    const btn = e.target.closest(".q-pill");
-    if (!btn) return;
-    document.querySelectorAll(".q-pill").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-    state.brand = btn.dataset.brand;
-    state.page  = 1;
-    fetchWatches();
-  });
-
-  // Color swatches → re-fetch (keyword changes)
+  // Color swatches
   document.getElementById("colorSwatches").addEventListener("click", e => {
     const sw = e.target.closest(".swatch");
     if (!sw) return;
     const c = sw.dataset.color;
     state.colors.has(c) ? state.colors.delete(c) : state.colors.add(c);
-    triggerFetch();
+    syncUI(); renderAll();
   });
 
-  // Size buttons → re-fetch (keyword changes)
+  // Size buttons — "44" button maps to "44+" bucket
   document.getElementById("sizeGrid").addEventListener("click", e => {
     const btn = e.target.closest(".size-btn");
     if (!btn) return;
     const s = btn.dataset.size;
     state.sizes.has(s) ? state.sizes.delete(s) : state.sizes.add(s);
-    triggerFetch();
+    syncUI(); renderAll();
   });
 
-  // Checkboxes (type, movement) → re-fetch
+  // Checkboxes
   document.querySelector("aside").addEventListener("change", e => {
     if (!e.target.dataset.group) return;
     const g = e.target.dataset.group;
     e.target.checked ? state[g].add(e.target.value) : state[g].delete(e.target.value);
-    triggerFetch();
+    renderAll();
   });
 
-  // Price — client-side only (no keyword equivalent)
+  // Price
   document.getElementById("priceMin").addEventListener("input", debounce(e => {
     state.priceMin = e.target.value ? +e.target.value : null; renderAll();
-  }, 400));
+  }, 350));
   document.getElementById("priceMax").addEventListener("input", debounce(e => {
     state.priceMax = e.target.value ? +e.target.value : null; renderAll();
-  }, 400));
+  }, 350));
 
-  // Sort → re-fetch
+  // Sort
   document.getElementById("sortSelect").addEventListener("change", e => {
-    state.sort = e.target.value; state.page = 1; fetchWatches();
+    state.sort = e.target.value; renderAll();
   });
 
   // Reset
@@ -847,15 +772,18 @@ function initEvents() {
     state.colors = new Set(); state.sizes = new Set();
     state.types  = new Set(); state.movements = new Set();
     state.priceMin = null;    state.priceMax  = null;
-    document.getElementById("priceMin").value = "";
-    document.getElementById("priceMax").value = "";
-    syncUI(); triggerFetch();
+    state.search   = "";      state.brand     = "all";
+    document.getElementById("searchInput").value = "";
+    document.getElementById("priceMin").value    = "";
+    document.getElementById("priceMax").value    = "";
+    document.querySelectorAll(".q-pill").forEach((b, i) => b.classList.toggle("active", i === 0));
+    syncUI(); renderAll();
   });
 }
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
 initEvents();
-fetchWatches();
+loadDB();
 </script>
 </body>
 </html>

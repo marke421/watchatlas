@@ -1,6 +1,10 @@
 {
   "rewrites": [
-    { "source": "/api/:path*", "destination": "/api/:path*" },
-    { "source": "/(.*)",       "destination": "/public/$1"  }
-  ]
+    { "source": "/api/:path*",    "destination": "/api/:path*" },
+    { "source": "/watches.json",  "destination": "/public/watches.json" },
+    { "source": "/(.*)",          "destination": "/public/$1" }
+  ],
+  "functions": {
+    "api/*.js": { "runtime": "nodejs20.x" }
+  }
 }
